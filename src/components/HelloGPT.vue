@@ -9,8 +9,13 @@ const state = reactive({
   chatResponse: ''
 });
 
-const getResponseFromChatGPT = async (inputText) => {
+const dialogue = ref([])
 
+const getResponseFromChatGPT = async (inputText) => {
+  dialogue.value.push({
+    content: inputText,
+    role: 'user'
+  })
   const response = await request.post('https://api.openai.com/v1/chat/completions',
       {
         "model": "gpt-3.5-turbo",
@@ -18,11 +23,14 @@ const getResponseFromChatGPT = async (inputText) => {
       },
       {
         headers: {
-          'Authorization': 'Bearer '
+          'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_TOKEN}`,
         }
       });
   state.chatResponse = response.data.choices[0].message.content;
-
+  dialogue.value.push({
+    content: response.data.choices[0].message.content,
+    role: 'bot'
+  })
 }
 
 
@@ -40,7 +48,6 @@ const maxHeight = ref(100);
 
 onMounted(() => {
   lineHeight = parseInt(window.getComputedStyle(textareaRef.value).lineHeight);
-
 });
 
 function updateValue(event) {
@@ -53,24 +60,24 @@ function updateValue(event) {
   });
 }
 
-const sendMessage=()=>{
+const sendMessage = () => {
   getResponseFromChatGPT(state.userInput);
-  state.userInput='';
+  state.userInput = '';
 }
-const handleKeydown=(event)=>{
+const handleKeydown = (event) => {
   if (event.key === 'Enter') {
     if (event.shiftKey && event.keyCode === 13) {
       // 按下 Shift + Enter
       // event.preventDefault(); // 阻止默认的 Enter 事件
       console.log('Shift + Enter');
-    }else {
+    } else {
       event.preventDefault();
-      if(state.userInput===''){
+      if (state.userInput === '') {
         return;
       }
 
       getResponseFromChatGPT(state.userInput);
-      state.userInput='';
+      state.userInput = '';
     }
   }
 }
@@ -78,8 +85,10 @@ const handleKeydown=(event)=>{
 
 <template>
   <div class="box">
-    <p>{{ state.chatResponse }}</p>
 
+    <div class="dialogue">
+      <p v-for="(item, index) in dialogue" :key="index" :class="{ bot: item.role==='bot' }">{{ item.content }}</p>
+    </div>
     <div class="input-container">
       <div class="textarea-wrapper">
            <textarea class="input" :style="{ height: `${computedTextareaHeight}px` }" v-model="state.userInput"
@@ -92,6 +101,22 @@ const handleKeydown=(event)=>{
 </template>
 
 <style lang="scss" scoped>
+.dialogue {
+  display: flex;
+  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+
+  p {
+    width: 40%;
+    padding: 10px;
+  }
+
+  .bot {
+    background-color: #f0f0f0;
+  }
+}
+
 .input-container {
   position: fixed;
   bottom: 30px;
@@ -103,7 +128,42 @@ const handleKeydown=(event)=>{
   position: relative;
   width: 60%;
 }
+.input-container {
+  width: 100%;
+  height: auto;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
 
+.input {
+  width: 100%;
+  min-height: 50px;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #ccc;
+  font-size: 16px;
+  line-height: 1.5;
+  resize: none;
+  outline: none;
+  box-sizing: border-box;
+}
+.input::-webkit-scrollbar {
+  width: 8px; /* 设置滚动条宽度 */
+}
+
+.input::-webkit-scrollbar-track {
+  background-color: #f2f2f2; /* 设置滚动条轨道背景色 */
+}
+
+.input::-webkit-scrollbar-thumb {
+  background-color: #aaa; /* 设置滚动条的颜色 */
+  border-radius: 10px; /* 设置滚动条的圆角 */
+}
+
+.input-container::-webkit-scrollbar-thumb:hover {
+  background-color: #666; /* 设置鼠标悬停时滚动条的颜色 */
+}
 
 .my-button {
   position: absolute;
@@ -122,7 +182,7 @@ const handleKeydown=(event)=>{
   color: #fff;
   border-radius: 4px;
   cursor: pointer;
-  border:none
+  border: none
 }
 
 .my-button:hover {
