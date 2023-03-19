@@ -10,32 +10,36 @@ const state = reactive({
 });
 
 const dialogue = ref([])
-
 const getResponseFromChatGPT = async (inputText) => {
   dialogue.value.push({
     content: inputText,
     role: 'user'
   })
+
   const response = await request.post('https://api.openai.com/v1/chat/completions',
       {
         "model": "gpt-3.5-turbo",
-        "messages": [{"role": "user", "content": state.userInput}]
+        "messages": [
+          ...dialogue.value
+        ]
       },
       {
         headers: {
           'Authorization': `Bearer ${import.meta.env.VITE_OPENAI_TOKEN}`,
         }
       });
+  textStatus.value=false
   state.chatResponse = response.data.choices[0].message.content;
   dialogue.value.push({
     content: response.data.choices[0].message.content,
-    role: 'bot'
+    role: 'assistant'
   })
 }
 
 
 const textareaRef = ref();
 const value = ref('');
+const textStatus=ref(false)
 let lineHeight = null;
 
 const computedTextareaHeight = computed(() => {
@@ -61,6 +65,7 @@ function updateValue(event) {
 }
 
 const sendMessage = () => {
+  textStatus.value=true
   getResponseFromChatGPT(state.userInput);
   state.userInput = '';
 }
@@ -76,8 +81,7 @@ const handleKeydown = (event) => {
         return;
       }
 
-      getResponseFromChatGPT(state.userInput);
-      state.userInput = '';
+      sendMessage();
     }
   }
 }
@@ -87,13 +91,14 @@ const handleKeydown = (event) => {
   <div class="box">
 
     <div class="dialogue">
-      <p v-for="(item, index) in dialogue" :key="index" :class="{ bot: item.role==='bot' }">{{ item.content }}</p>
+      <p v-for="(item, index) in dialogue" :key="index" :class="{ bot: item.role==='assistant' }">{{ item.content }}</p>
     </div>
     <div class="input-container">
       <div class="textarea-wrapper">
-           <textarea class="input" :style="{ height: `${computedTextareaHeight}px` }" v-model="state.userInput"
-                     @input="updateValue" ref="textareaRef" rows="1" wrap="soft" @keydown="handleKeydown">
-      </textarea>
+        <textarea class="input" :style="{ height: `${computedTextareaHeight}px` }" v-model="state.userInput"
+                  @input="updateValue" ref="textareaRef" rows="1" wrap="soft" @keydown="handleKeydown"
+                  v-bind:disabled="textStatus">
+        </textarea>
         <button class="my-button" @click="sendMessage">></button>
       </div>
     </div>
@@ -106,6 +111,8 @@ const handleKeydown = (event) => {
   justify-content: center;
   flex-direction: column;
   align-items: center;
+  padding-top: 20px;
+  padding-bottom: 100px;
 
   p {
     width: 40%;
@@ -128,6 +135,7 @@ const handleKeydown = (event) => {
   position: relative;
   width: 60%;
 }
+
 .input-container {
   width: 100%;
   height: auto;
@@ -148,6 +156,7 @@ const handleKeydown = (event) => {
   outline: none;
   box-sizing: border-box;
 }
+
 .input::-webkit-scrollbar {
   width: 8px; /* 设置滚动条宽度 */
 }
